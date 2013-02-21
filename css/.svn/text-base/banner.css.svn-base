@@ -1,0 +1,38 @@
+@CHARSET "UTF-8";
+
+div.Normal[context=Banner] {
+	height: auto;
+	width: 100%;
+	position: fixed;
+	top: 0px;
+	margin: auto;
+	background: #FFFFFF;
+	z-index: 100;
+}
+
+div.Normal[context=Banner] > div[context=Div] {
+	padding: 8px 10px;
+	background: #DDEEFF;
+	border-bottom: 1px solid #BBBBBB;
+	font-size: 18px;
+	color: #336699;
+}
+
+div[context=Banner] > button[context=Button] {
+	position: absolute;
+	right: 2px;
+	top: 2px;
+	background-color: white;
+	background-image: url(../images/delete-icon-32x32.png);
+	background-position: center;
+	background-repeat: no-repeat;
+	width: 36px;
+	height: 36px;
+	cursor: pointer;
+}
+
+div[context=Banner] > div[context=Container] {
+	margin: 5px;
+	padding: 20px 0;
+	text-align: center;
+}

@@ -1,0 +1,13 @@
+@CHARSET "UTF-8";
+
+div[context=Planner].inLine > div[context='Planner.Section'] > div[context=Container] {
+	float: left;
+	margin: 0 10px 0 0;
+}
+
+div[context=Planner].inLine > div[context='Planner.Section'] > div[context=Container] > div {
+	float: left;
+	margin: 0 5px 0 0;
+}
+
+

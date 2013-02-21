@@ -1,0 +1,49 @@
+<?php
+class ClassReflector extends ReflectionClass {
+	
+	protected static $instances = array();
+	
+	public function raiseInstanceCount() {
+		if( isset(self::$instances[$this->getFullName()]) )
+			self::$instances[$this->getFullName()] += 1;
+		else
+			self::$instances[$this->getFullName()] = 1;
+	}
+	
+	public function getInstanceCount() {
+		return self::$instances[$this->getFullName()];
+	}
+	
+	public function getMethod($method) {
+		return new MethodReflector($this->getFullName(), $method);		
+	}
+	
+	public function getMethods($filter = ReflectionMethod::IS_PUBLIC) {
+		$methods = array(); 
+		foreach( parent::getMethods($filter) as $method ) {
+			$methods[] = new MethodReflector($this->getFullName(), $method->getName());
+		}
+		return $methods;
+	}
+	
+	public function getProperty($property) {
+		return new PropertyReflector($this->getFullName(), $property);
+	}
+	
+	public function getProperties() {
+		$properties = array();
+		foreach( parent::getProperties() as $property ) {
+			$properties[] = new PropertyReflector($this->getFullName(), $property->getName());
+		}
+		return $properties;
+	}
+	
+	public function getName() {
+		return array_pop(explode('\\', parent::getName()));
+	}
+	
+	public function getFullName() {
+		return parent::getName();
+	}
+}
+?>

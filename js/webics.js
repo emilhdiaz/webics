@@ -2,7 +2,7 @@
  * FireBug debug console logging.
  */
 function log(message) {
-    if(LOG == true) {
+	if(LOG == true) {
 		console.log(message);
 	}	
 }

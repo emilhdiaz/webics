@@ -1,0 +1,28 @@
+@CHARSET "ISO-8859-1";
+
+
+div[context=Navigation].Webics > div[context=Section] > div[context=Div] {
+	height: 20px;
+	padding: 3px 10px;
+	border-bottom: 1px solid #EEEEEE;
+	background-color: #FFFFFF;
+	font-size: 1em;
+	font-weight:bold;
+	color:#484848;
+	cursor: pointer;
+}
+
+div[context=Navigation].Webics > div[context=Section] > div[context=Container] > div[context=Div] {
+	background-color: #EEEEEE;
+	height: 16px;
+	padding: 3px;
+	font-size: 10px;
+	font-weight:normal;
+	text-decoration: none;
+	color:#404040;	
+	cursor: pointer;	
+}
+
+div[context=Navigation].Webics > div[context=Section] > div[context=Container] > div[context=Div]:hover {
+	background-color: #DDDDDD;		
+}

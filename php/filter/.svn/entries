@@ -1,0 +1,62 @@
+10
+
+dir
+19
+svn+ssh://benz.cuit.columbia.edu/svn/webics/php/filter
+svn+ssh://benz.cuit.columbia.edu/svn/webics
+
+
+
+2010-06-29T14:04:29.577098Z
+15
+Emil Diaz
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+addc8856-e72d-42c5-afbe-2547f4d0a7ef
+
+Filter.php
+file
+
+
+
+
+2010-07-05T17:07:22.000000Z
+f3977623237ad91f0d43d250883eed17
+2010-06-29T14:04:29.577098Z
+15
+Emil Diaz
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1341
+

@@ -1,0 +1,65 @@
+10
+
+dir
+19
+svn+ssh://benz.cuit.columbia.edu/svn/webics/php/validate
+svn+ssh://benz.cuit.columbia.edu/svn/webics
+
+
+
+2010-06-29T14:04:29.577098Z
+15
+Emil Diaz
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+addc8856-e72d-42c5-afbe-2547f4d0a7ef
+
+Validate.php
+file
+
+
+
+
+2010-07-05T17:07:22.000000Z
+6e2c69b5c8f240e1a64faf4e151b9506
+2010-06-29T14:04:29.577098Z
+15
+Emil Diaz
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+540
+
+validators
+dir
+

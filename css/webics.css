@@ -1,0 +1,59 @@
+@CHARSET "UTF-8";
+
+.floatLeft {
+	float: left;
+}
+
+.floatRight {
+	float: right;
+}
+
+.floatClear {
+	clear: both;
+}
+
+.center {
+	margin: auto;	
+}
+
+.correctSubmit {
+	position: relative;
+	top: 6px;
+	left: 6px;
+}
+
+.boxLightGray {
+	border: 1px solid #BBBBBB;
+	background-color: #F0F0F0;
+}
+
+div[component=icons] {
+	text-align: center;	
+}
+
+div[component=icons] > * {
+	margin: 2px 10px;
+}
+
+.mask {
+	background-color: black;
+	opacity: 0.8;
+}
+
+.spinner {
+	position: absolute;
+	opacity: 1;
+	z-index: 999;
+	background: #fff;
+}
+.spinner-msg {
+	text-align: center;
+	font-weight: bold;
+}
+
+.spinner-img {
+	background: url(../images/spinner-icon-32x32.gif) no-repeat;
+	width: 24px;
+	height: 24px;
+	margin: 0 auto;
+}

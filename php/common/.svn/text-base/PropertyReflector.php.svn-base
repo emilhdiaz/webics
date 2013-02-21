@@ -1,0 +1,75 @@
+<?php
+class PropertyReflector extends ReflectionProperty {
+
+	protected $annotations = array();
+
+	public function __construct( $class, $property ) {
+		parent::__construct($class, $property);
+		if( $docComment = $this->getDocComment() ) { 
+			if( preg_match_all('/@([a-zA-Z]+)[ ]*(.*)/', $docComment, $matches) ) {
+				foreach( $matches[0] as $key=>$match ) {
+					$annotation = $matches[1][$key];
+					$value = $matches[2][$key];
+					if( $annotation == 'var') {
+						preg_match('/([\w\\\]+)(\[\])?(\{\})?\(?([0-9]*)\)?([\s]+[\w]+)?/', $value, $matches2);
+						list($annotation, $class, $isArray, $isHash, $length, $label) = $matches2;
+						if( !class_exists($class) )
+							throw new Exception("Class `$class` does not exist");
+
+						$this->annotations = array('type'=>$class,'length'=>$length);
+						$this->annotations['isEntity'] = $class::getClass()->isSubclassOf('\DAOEntity') ? true : false;
+						$this->annotations['isCollection'] = ( $isArray || $isHash ) ? true : false;
+						$this->annotations['collectionType'] = $isArray ? 'VArray' : ($isHash ? 'Hash' : false);
+					}
+					elseif( $annotation == 'restricted' ) {
+						preg_match_all('/([\w]+)/', $value, $matches2);
+						$this->annotations[$annotation] = $matches2[0];
+					}
+					else  {
+						$this->annotations[$annotation] = trim($value);
+					}
+				}
+			}
+		}
+	}	
+	
+	public function hasAnnotation( $annotation ) {
+		$annotations = $this->getAnnotations();
+		return (bool) array_key_exists($annotation, $annotations);
+	}
+	
+	public function getAnnotation( $annotation ) {
+		if( !$this->hasAnnotation($annotation) ) return false;
+		$annotations = $this->getAnnotations();
+		return $annotations[$annotation];
+	}
+	
+	public function getAnnotations() {
+		return $this->annotations; 
+	}
+	
+	public function getType() {
+		return $this->annotations['type'];
+	}
+	
+	public function getLength() {
+		return $this->annotations['length'];
+	}
+	
+	public function getCollectionType() {
+		return $this->annotations['collectionType'];	
+	}
+	
+	public function isEntity() {
+		return $this->annotations['isEntity'];
+	}
+	
+	public function isCollection() {
+		return $this->annotations['isCollection'];
+	}
+
+	public function getDeclaringClass() {
+		return new ClassReflector(parent::getDeclaringClass()->getName());
+	}
+}
+?>

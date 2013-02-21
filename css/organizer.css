@@ -1,0 +1,29 @@
+@CHARSET "ISO-8859-1";
+
+div[component=organizer].IceBlue {
+	width: 100%;
+	border-bottom: 1px solid #C4E1FF;
+}
+
+div[component=organizer].IceBlue div[component=header] div {
+ 	height: 22px;
+	padding: 2px 2px;
+	border: 1px solid #C4E1FF;
+	background-color: #F4F9FF;
+	font-size: 16px;
+	font-weight: bold;
+	color:#484848;
+	cursor: pointer;
+}
+
+div[component=organizer].IceBlue div[component=container] {
+	background: #FFFFFF;
+}
+
+div[component=organizer].IceBlue div[component=container] div {
+	padding: 4px 5px;
+	font-size: 14px;
+	font-weight: normal;
+	color:#484848;
+	text-align: center;
+}

@@ -1,0 +1,473 @@
+<?php
+class DAOEntityReflector extends ClassReflector {
+	
+	private static $cache;
+	const method_reflector_class = 'DAOEntityMethodReflector';
+	
+	public function __construct( $class ) {
+		parent::__construct($class);
+		if( is_null(self::$cache) )
+			self::$cache = new Cache();
+	}
+	
+	public function getProperties() {
+		$properties = array();
+		$customKey = false;
+		$parentKey = false;
+		
+		// check for parent key
+		$base = $this->getParentClass();
+		if( $base->isSubclassOf('\DAOEntity') ) {
+			$fullName = $base->getName();
+			$properties = $fullName::getClass()->getKey();
+			$parentKey = true;
+		}
+		
+		foreach( parent::getProperties() as $property ) {
+			if( !in_array($property->getDeclaringClass()->getName(), array($this->getName(), 'DAOEntity')) )
+				continue;
+				
+			if( $property->isCollection() )
+				continue;
+				
+			if( $property->hasAnnotation('key') && $parentKey )
+				continue;
+				
+			if( $property->hasAnnotation('key') && ($property->getName() != 'ID') ) 
+					$customKey = true;
+				
+			$properties[$property->getName()] = $property;
+		}
+		
+		if($customKey) unset($properties['ID']);
+		
+		return $properties;
+	}
+	
+	public function getSource() {
+		$source = $this->getConstant('source');
+		$source = new String($source ? $source : $this->getName());
+
+		// check for parent
+//		$base = $this->getParentClass();
+//		if( $base->isSubclassOf('\DAOEntity') ) {
+//			$source = new VArray($source);
+//			$fullName = $base->getName();
+//			$source->merge($fullName::getClass()->getSource());
+//		}
+		
+		return $source;
+	}
+	
+	public function isLoaded( DAOEntity $entity ) {
+		$loaded_prop = DAOEntity::getClass()->getProperty('loaded');
+		$loaded_prop->setAccessible(true);
+		$loaded = $loaded_prop->getValue($entity);
+		$loaded_prop->setAccessible(false);
+		return (bool) $loaded;
+	}
+	
+//	public function setLoaded( DAOEntity $entity, $bool ) {
+//		$loaded_prop = DAOEntity::getClass()->getProperty('loaded');
+//		$loaded_prop->setAccessible(true);
+//		$loaded_prop->setValue($entity, $bool);
+//		$loaded_prop->setAccessible(false);
+//		
+//		$base_prop = DAOEntity::getClass()->getProperty('base');
+//		$base_prop->setAccessible(true);
+//		$base = $base_prop->getValue($entity);
+//		$base_prop->setAccessible(false);
+//		
+//		if( $base )
+//			$this->setLoaded($base, $bool);
+//	}
+	
+	public function getKey( DAOEntity $entity = null ) {
+//		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$class = $this->getFullName();
+		if( !is_null($entity) && !($entity instanceOf $class) )
+			throw new InvalidMethodArgumentException;
+
+		$key = array();
+		
+		foreach( $this->getProperties() as $property ) {
+			if( !$property->hasAnnotation('key') ) 
+				continue;
+			
+			$type = $property->getType();
+			
+			if( $property->isEntity() ) {
+				$entity_keys = $type::getClass()->getKey( $entity ? $entity->get($property->getName()) : null );
+				$key = array_merge($key, array_prefix_keys(strtolower($property->getName()), $entity_keys));
+			}
+			else {
+				$key[$property->getName()] = $entity ? $entity->get($property->getName()) : $property;
+			}
+		}
+		
+		ksort($key);
+		return $key;
+	}
+	
+	public function getKeyString( DAOEntity $entity ) {
+		$key = array();
+		
+		if( $entity instanceOf DAOEntity ) {
+			$key = $this->getKey($entity);
+		} else {
+			$key = array_extract($entity, array_keys($this->getKey()));
+		}
+			
+		ksort($key);
+		$string = implode('-',$key);
+		return $string;
+	}
+	
+	public function getValues( DAOEntity $entity, array $exclude ) {
+//		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$modifier = get_caller_class(array('DAOEntity', 'DAOEntityReflector'));	
+		$class = $this->getFullName();
+		
+		if( !($entity instanceOf $class) )
+			throw new InvalidMethodArgumentException;
+		
+		$remove_restricted = in_array('restricted', $exclude);
+		$exclude = array_diff($exclude, array('restricted'));
+		
+		$properties = array();
+		foreach( $this->getProperties() as $property ) {
+			// check for static variables
+			if( $property->isStatic() )
+				continue;
+			
+//			if( !$property->hasAnnotation('var') )
+//				continue;
+				
+			// check for restricted
+			if( $remove_restricted ) {
+				if( $allowed = $property->getAnnotation('restricted') ) {
+					if( !in_array($modifier, $allowed) ) 
+						continue;
+				}
+			}
+			
+//			$type = $property->getType();
+
+			foreach( a($exclude) as $exclusion ) {
+				list($value, $key) = parse_key_value_pair($exclusion);
+				if( $key ) { 
+					if( $property->getAnnotation($key) === $value )
+						continue 2;
+				}
+				else { 
+					if( $property->hasAnnotation($value) )
+						continue 2;
+				}
+			}
+			
+			$properties[$property->getName()] = $entity->get($property->getName());
+		}
+		return $properties;
+	}
+	
+	
+	public function checkRequiredProperties( $properties, $required, $checkAll = true ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$missingProperties = new VArray();
+		
+		foreach( $this->getProperties() as $property ) {
+			if( !$checkAll && !array_key_search($property->getName(), $properties) )
+				continue;							
+
+			foreach( a($required) as $requirement ) {
+				list($value, $key) = parse_key_value_pair($requirement);
+				
+				if( $key ) { 
+					if( $property->getAnnotation($key) === $value ) {
+						if( !array_value($property->getName(), $properties) ) {
+							$missingProperties[] = $property->getName();
+						}
+					}
+				}
+				else {
+					if( $property->getAnnotation($value) === true ) {
+						if( !array_value($property->getName(), $properties) ) {
+							$missingProperties[] = $property->getName();
+						}
+					}
+				}
+			}
+		}	
+		
+		if( !$missingProperties->isEmpty() )
+			throw new RequiredPropertiesException($missingProperties);
+	}
+	
+	public function checkKey( $key ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		
+		// check for supplied key and set
+		if( is_scalar($key) ) {
+			$keyProperties = $this->getKey();
+			if( count($keyProperties) > 1 )
+				throw new InvalidMethodArgumentException('keys');
+				
+			$key = array_fill_keys(array_keys($keyProperties), $key);
+		}
+			
+		$this->checkUnknownProperties($key);
+		$this->checkRequiredProperties($key, array('key', 'key=auto'));
+		$this->checkPropertyValues($key);
+		
+		$key = new Hash($key);
+		
+		return $key->prefixKeys($this->getName().'.');
+	}
+	
+	public function mapEntitiesToKeys( array $properties ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$props = array();
+		
+		foreach( $properties as $property=>$value ) {
+			$type = $this->getProperty($property)->getType();
+
+			if( $this->getProperty($property)->isEntity() )
+				$props = array_merge($props, $this->mapEntityToKey($property, $value));
+			else
+				$props[$property] = $value;
+		}
+		
+		return $props;
+	}
+	
+	public function mapEntityToKey( $property, $value ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$type = $this->getProperty($property)->getType();
+		$key = array();
+		
+		if( !$this->getProperty($property)->isEntity() )
+			throw new InvalidTypeException($property);
+		
+		if( !is_subclass_of($value, '\DAOEntity') && !is_null($value) )
+			throw new InvalidTypeException($property);
+			
+		if( $this->getProperty($property)->isCollection() )
+			return $key;
+			
+		if( is_null($value) )
+			return $key;
+			
+		$key = array_prefix_keys(strtolower($property), $type::getClass()->getKey($value));
+
+		return $key;
+	}
+	
+	public function checkPropertyValues( array $properties ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$invalid = new Varray();
+		foreach( $properties as $property=>$value ) {
+			try {
+				$this->checkPropertyValue($property, $value);
+			} catch( InvalidTypeException $e ) {
+				$invalid[] = $property;
+			}
+		}
+		if( !$invalid->isEmpty() ) 
+			throw new InvalidTypesException($invalid);
+
+		return true;
+	}
+	
+	public function checkPropertyValue( $property, $value ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$type = $this->getProperty($property)->getType();
+
+		if( is_null($value))
+			return true;
+			
+		// check for entity 
+		if( $this->getProperty($property)->isEntity() ) {
+			// attempt to load
+			if( !is_object($value) && !$type::exists($value) )
+				throw new InvalidTypeException($property, $type);
+			
+			// check for correct object type
+			if( !$this->getProperty($property)->hasAnnotation('relationship') && !($value instanceof $type) )
+				throw new InvalidTypeException($property, $type);
+
+			// check for loaded entity
+			if( !$this->getProperty($property)->isCollection() && !$this->isLoaded($value) )
+				throw new InvalidTypeException($property, $type);
+		}	
+		else {
+			// check for scalar assignment
+			if( !is_object($value) && (gettype($type::validate($value)) != $type::nativeType) )
+				throw new InvalidTypeException($property, $type);
+			
+			if( is_object($value) && !($value instanceof $type) )
+				throw new InvalidTypeException($property, $type);	
+		} 
+			
+		return true;
+	}
+	
+	public function checkPropertyRestrictions( array $properties, $isLoaded ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$restricted = new VArray();
+		foreach( $properties as $property=>$value ) {
+			try {
+				$this->checkPropertyRestriction($property, $isLoaded);
+			} catch( RestrictedPropertyException $e ) {
+				$restricted[] = $property;
+			}
+		}
+		
+		if( !$restricted->isEmpty() )
+			throw new RestrictedPropertiesException($restricted);
+			
+		return true;
+	}
+	
+	public function checkPropertyRestriction( $property, $isLoaded ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$modifier = get_caller_class(array('DAOEntity', 'DAOEntityReflector'));	
+		
+		// check for readonly
+		if( $this->getProperty($property)->hasAnnotation('readonly') )
+			throw new RestrictedPropertyException($property, 'readonly');
+
+		// check for internal
+		if( $this->getProperty($property)->hasAnnotation('internal') )
+			throw new RestrictedPropertyException($property, 'internal');
+						
+		// check for restricted
+		if( ($allowed = $this->getProperty($property)->getAnnotation('restricted')) && !in_array($modifier, $allowed) )
+			throw new RestrictedPropertyException($property, 'restricted');
+		
+		// entity is loaded
+		if( $isLoaded ) {
+			// check for key
+			if( $this->getProperty($property)->hasAnnotation('key') )
+				throw new RestrictedPropertyException($property, 'key');
+
+			// check for constant
+			if( $this->getProperty($property)->hasAnnotation('constant') )
+				throw new RestrictedPropertyException($property, 'constant');
+		}
+		// entity is not loaded
+		else {
+			// check for the auto key
+			if( $this->getProperty($property)->getAnnotation('key') === 'auto'  )
+				throw new RestrictedPropertyException($property, "automatic key");
+
+			// check for default
+//			if( $this->getProperty($property)->getAnnotation('default') == '*' )
+//				throw new RestrictedPropertyException($property, "system default");
+		}
+		
+		return true;
+	}
+	
+	public function checkUnknownProperties( $properties ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		$unknown = new VArray();
+		foreach( $properties as $property=>$value ) {
+			try {
+				$this->checkUnknownProperty($property);
+			} catch( UnknownPropertyException $e ) {
+				$unknown[] = $property;
+			}
+		}
+		
+		if( !$unknown->isEmpty() )
+			throw new UnknownPropertiesException($unknown);
+	}
+	
+	public function checkUnknownProperty( $property ) {
+		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+		if( !$this->hasProperty($property) )
+			throw new UnknownPropertyException($property);
+	}
+	
+//	public function createLoadedEntities( array $entity_properties ) {
+//		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+//		$entities = new Hash();
+//
+//		foreach( $entity_properties as $properties ) {
+//			// create new entity
+//			$entity = $this->createLoadedEntity($properties);
+//
+//			// add to hash
+//			$entities->{implode('-',$this->getKey($entity))} = $entity;
+//		}
+//		return $entities;
+//		
+//	}
+	
+//	public function createLoadedEntity( array $properties ) {
+//		restrict_method_access(array('DAOEntity', 'DAOEntityReflector'));
+//		$class = $this->getFullName();
+//		$key = array_extract($properties, array_keys($this->getKey()));
+//		ksort($key);
+//		$index = implode('-',$key);
+//		
+//		if( !($entity = self::$cache->retrieve($this->getFullName(), $index)) )
+//			$entity = new $class;
+//
+//		// set properties
+//		foreach(  $properties as $property=>$value ) {
+//			$entity->set($property,$value);
+//		}
+//
+//		// mark as loaded
+//		$this->setLoaded($entity, true);
+//		self::$cache->store($this->getFullName(), $index, $entity);
+//		return $entity;
+//	}
+	
+//	public function saveInCache( DAOEntity $entity ) {
+//		$class = $this->getFullName();
+//		if( !($entity instanceOf $class) || !$this->isLoaded($entity) )
+//			throw new InvalidMethodArgumentException;
+//			
+//		self::$cache->store($this->getFullName(), implode('-',$this->getKey($entity)), $entity);
+//	}
+	
+	public function dropRepository() {
+		return Application::dao()->dropRepository($this->getSource());
+	}
+	
+	public function createRepository() {
+		return Application::dao()->createRepository($this);
+	}
+	
+	public function createRelationships() {
+		return Application::dao()->createRelationships($this);
+	}
+	
+	public function getDependencies() {
+		$dependencies = new VArray();
+		foreach( parent::getProperties() as $property ) {
+			if( !in_array($property->getDeclaringClass()->getName(), array($this->getName(), 'DAOEntity')) )
+				continue;
+
+			if( $property->hasAnnotation('alias') )
+				continue;
+			
+			if( !$dependencies[$property->getType()] ) {
+				$dependencies[$property->getType()] = new VArray();
+			}
+				
+			if( $property->isCollection() )
+				$dependencies[$property->getType()]->contain($property->getCollectionType());
+			else 
+				$dependencies[$property->getType()]->contain('Direct');
+		}
+		$base = $this->getParentClass();
+		if( $base->isSubclassOf('\DAOEntity') ) 
+			$dependencies[$base->getName()]->contain('Parent');
+		
+		return !empty($dependencies) ? $dependencies : false;
+	}
+}
+?>

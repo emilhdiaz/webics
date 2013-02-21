@@ -1,0 +1,25 @@
+@CHARSET "UTF-8";
+
+div[context=Sections].Professional > div[context=Section] {
+	margin: 5px 0;	
+}
+
+div[context=Sections].Professional > div[context=Section] > div[context=Div] {
+	position: relative;
+	padding: 5px;
+	border: 1px solid #000033;
+}
+
+div[context=Sections].Professional > div[context=Section].enabled > div[context=Div] {
+	background-color: #CCFFCC;
+}
+
+div[context=Sections].Professional > div[context=Section].disabled > div[context=Div] {
+	background-color: #FFCCCC;
+}
+
+div[context=Sections].Professional > div[context=Section] > div[context=Div] > form[context=Toggler] {
+	position: absolute;
+	top: 3px;
+	right: 6px;
+}

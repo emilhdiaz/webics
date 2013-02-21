@@ -1,0 +1,566 @@
+<?php
+require_once('php/test/tests/dao/Chapter.php');
+use unittests\Author as Author;
+use unittests\Book as Book;
+use unittests\TextBook as TextBook;
+use unittests\Publisher as Publisher;
+use unittests\Chapter as Chapter;
+use unittests\Publication as Publication;
+
+class DAOEntityUnitTest extends UnitTest {
+		
+	public static function test_EntityInstanciation() {
+		new Author;
+		new Book;
+		new Publisher;
+	}
+	
+	public static function test_AllPublishers() {
+		new Publisher;
+		$publishers = Publisher::all();
+		return $publishers;
+	}
+	
+	public static function test_NewEntityDefaultProperties() {
+		$book = new Book;
+		$author = new Author;
+		assert( $book->publishedOn instanceOf Timestamp );
+		assert( $author->isAlive->bool() == true );
+	}	
+	
+	public static function test_AllEntities() {
+		$authors = Author::all();
+		assert( $authors->size() == 2 );
+	}
+	
+	public static function test_FindEntities() {
+		$publishers = Publisher::find(array('state'=>'NY'));
+		assert( $publishers->size() == 2 );
+	}
+	
+	public static function test_SearchEntities() {
+		$authors = Author::find(array('lastName'=>'son'), true);
+		assert( $authors->size() == 1 );
+	}
+	
+	public static function test_ExistEntity() {
+		$found1 = Author::exists(1);
+		$found2 = Author::exists(100);
+		assert( $found1 == true );
+		assert( $found2 == false );
+	}
+	
+	public static function test_LoadEntity() {
+		$book = Book::load(array('isbn'=>1234));
+		$author = Author::load(1);
+		$publisher = Publisher::load(1);
+	}
+	
+	public static function test_LoadSubClassEntity() {
+		$book = Book::load(array('isbn'=>1234));
+		$textbook = TextBook::load(1234);
+		assert($book->title === $textbook->title);
+	}
+		
+	public static function test_DeleteEntity() {
+		$book = Book::load(1234);
+		$book->delete();
+		assert( Book::exists(1234) == false );
+	}
+	
+	public static function test_ReCreateEntity() {
+		$book = Book::load(1234);
+		$book->delete();
+		$book->save();
+		assert( Book::exists(1234) == true );
+	}
+	
+	public static function test_AlternateToString() {
+		$author = Author::load(1);
+		assert( (string) $author == 'Mike Harrison' );
+	}
+	
+	public static function test_ReadNewEntityValidACLRestrictedProperty() {
+		$author = new Author; 
+		$author->ssn;
+	}
+	
+	public static function test_ReadNewEntityInvalidACLRestrictedProperty() {
+		$author = new Author; 
+		$author->ba;
+	}	
+	
+	public static function test_ReadExistingValidACLEntityRestrictedProperty() {
+		$author = Author::load(1);
+		$author->ssn;	
+	}
+	
+	public static function test_ReadExistingInvalidACLEntityRestrictedProperty() {
+		$author = Author::load(1);
+		$author->ba;	
+	}	
+	
+	/** @exception UnknownPropertyException **/
+	public static function test_AssignNewEntityUnknownProperty() {
+		$book = new Book;
+		$book->unknown = 'unknown';
+	}
+	
+	public static function test_AssignNewEntityValidPropertyType() {
+		$book = new Book;
+		$book->title = '1234';
+	}
+	
+	/** @exception InvalidTypeException **/
+	public static function test_AssignNewEntityInvalidPropertyType() {
+		$book = new Book;
+		$book->title = 1234;
+	}
+
+	public static function test_AssignNewEntityKeyProperty() {
+		$book = new Book;
+		$book->isbn = '9780764587276';
+		assert($book->isbn->int() === 9780764587276);
+	}
+	
+	public static function test_AssignNewEntityAliasProperty() {
+		$book = new Book;
+		$book->isbn13 = '9780764587276';
+		assert($book->isbn->int() === 9780764587276);
+		assert($book->isbn13->int() === 9780764587276);
+	}
+	
+	/**	@exception RestrictedPropertyException **/
+	public static function test_AssignNewEntityRestrictedAutoKeyProperty() {
+		$author = new Author;
+		$author->ID = 1;
+	}
+	
+	/**	@exception RestrictedPropertyException **/
+	public static function test_AssignNewEntityRestrictedReadonlyProperty() {
+		$author = new Author;
+		$author->CreatedOn = new Timestamp;
+	}
+	
+	public static function test_AssignNewEntityDefaultProperty() {
+		$author = new Author;
+		$author->isAlive = false;
+		assert($author->isAlive->bool() === false);
+	}
+	
+	public static function test_AssignNewEntityConstantProperty() {
+		$author = new Author;
+		$author->bornOn = 'May 19, 1976';
+		assert($author->bornOn->__toString() === 'May 19, 1976, 12:00 am');
+	}
+	
+	public static function test_AssignNewEntityRequiredProperty() {
+		$author = new Author;
+		$author->lastName = 'Twain';
+		assert($author->lastName->str() === 'Twain');
+	}
+	
+	/** @exception RestrictedPropertyException **/
+	public static function test_AssignNewEntityRestrictedProperty() {
+		$author = new Author; 
+		$author->ba = 23456;
+	}
+	
+	public static function test_AssignNewEntityLoadedEntityProperty() {
+		$publisher = Publisher::load(1);
+		$book = new Book;
+		$book->publisher = $publisher;
+		assert( $book->publisher->ID->int() === $publisher->ID->int() );
+	}
+	
+	/** @exception InvalidTypeException **/
+	public static function test_AssignNewEntityUnLoadedEntityProperty() {
+		$publisher = new Publisher;
+		$book = new Book;
+		$book->publisher = $publisher;
+	}
+	
+	/** @exception RestrictedPropertyException **/
+	public static function test_AssignNewEntityDependentProperty() {
+		$book = new Book;
+		$chapter = new unittests\Chapter;
+		$book->chapters = $chapter;
+	}
+	
+	/** @exception RestrictedPropertyException **/ 
+	public static function test_AssignNewEntityRelationshipProperty() {
+		$author = new Author; 
+		$book = new Book;
+		$author->publications = $book;
+	}
+	
+	public static function test_AssignNewEntityValidProperties() {
+		$book = new Book;
+		$book->properties = array('title'=>'Test','isbn'=>'9780764587276');
+		assert($book->title->str() === 'Test');
+		assert($book->isbn->int() === 9780764587276);
+	}
+	
+	/** @exception InvalidTypesException **/
+	public static function test_AssignNewEntityInvalidProperties() {
+		$book = new Book;
+		$book->properties = array('title'=>1234,'isbn'=>'9780764587276');
+	}
+	
+	/** @exception RestrictedPropertiesException **/
+	public static function test_AssignNewEntityAnyRestrictedProperties() {
+		$author = new Author;
+		$author->properties = array('CreatedOn'=>'now','firstName'=>'John');
+	}
+	
+	/** @exception UnknownPropertiesException **/
+	public static function test_AssignNewEntityUnknownProperties() {
+		$author = new Author;
+		$author->properties = array('unknown'=>'whatever','firstName'=>'John');
+	}
+	
+	/** @exception UnknownPropertyException **/
+	public static function test_AssignExistingEntityUnknownProperty() {
+		$book = Book::load(array('isbn'=>1234));
+		$book->unknown = 'unknown';
+	}
+	
+	public static function test_AssignExistingEntityValidPropertyType() {
+		$book = Book::load(array('isbn'=>1234));
+		$book->title = '1234';
+		assert( $book->title->str() === '1234' );
+	}
+	
+	/**	@exception InvalidTypeException **/
+	public static function test_AssignExistingEntityInvalidPropertyType() {
+		$book = Book::load(array('isbn'=>1234));
+		$book->title = 1234;
+	}
+	
+	/** @exception RestrictedPropertyException **/
+	public static function test_AssignExistingEntityRestrictedKeyProperty() {
+		$book = Book::load(array('isbn'=>1234));
+		$book->isbn = '9780764587276';
+	}
+	
+	public static function test_AssignExistingEntityAliasProperty() {
+		$book = Book::load(array('isbn'=>1234));
+		$book->msrp = 100.99;
+		assert($book->msrp->float() === 100.99);
+		assert($book->price->float() === 100.99);
+	}
+	
+	/**	@exception RestrictedPropertyException **/
+	public static function test_AssignExistingEntityRestrictedAutoKeyProperty() {
+		$author = Author::load(1);
+		$author->ID = 1;
+	}
+	
+	/**	@exception RestrictedPropertyException **/
+	public static function test_AssignExistingEntityRestrictedReadonlyProperty() {
+		$author = Author::load(1);
+		$author->CreatedOn = new Timestamp;
+	}
+	
+	/** @exception RestrictedPropertyException **/
+	public static function test_AssignExistingEntityRestrictedProperty() {
+		$author = Author::load(1);
+		$author->ssn = 234567890;
+	}
+
+	/**	@exception RestrictedPropertyException **/
+	public static function test_AssignExistingEntityRestrictedConstantProperty() {
+		$author = Author::load(1);
+		$author->bornOn = 'May 19, 1976';
+	}
+	
+	public static function test_AssignExistingEntityDBDefaultProperty() {
+		$time = new Timestamp;
+		$book = Book::load(array('isbn'=>1234));
+		$book->publishedOn = $time;
+		assert($book->publishedOn->__toString() === $time->__toString());
+	}
+	
+	public static function test_AssignExistingEntityDefaultProperty() {
+		$author = Author::load(1);
+		$author->isAlive = false;
+		assert($author->isAlive->bool() === false);
+	}
+	
+	public static function test_AssignExistingEntityRequiredProperty() {
+		$author = Author::load(1);
+		$author->lastName = 'Harrison';
+		assert($author->lastName->str() === 'Harrison');
+	}
+	
+	
+	public static function test_AssignExistingEntityLoadedEntityProperty() {
+		$publisher = Publisher::load(1);
+		$book = Book::load(array('isbn'=>1234));
+		$book->altPublisher = $publisher;
+	}
+	
+	/** @exception InvalidTypeException **/
+	public static function test_AssignExistingEntityUnLoadedEntityProperty() {
+		$publisher = new Publisher;
+		$book = Book::load(array('isbn'=>1234));
+		$book->altPublisher = $publisher;
+	}	
+	
+	public static function test_AssignExistingEntityDependentProperty() {
+		$book = Book::load(array('isbn'=>1234));
+		$chapter = new unittests\Chapter;
+		$book->chapters = $chapter;
+	}
+	
+	public static function test_AssignExistingEntityRelationshipProperty() {
+		$book = Book::load(array('isbn'=>1234));
+		$author = new Author;
+		$publication = $book->publications = $author;
+		assert( $publication instanceOf Publication );
+		//assert( $publication->author === $author );
+		//assert( $publication->book === $book );		
+	}
+	
+	/** @exception RequiredPropertiesException **/
+	public static function test_CreateNewEntityMissingKeyProperty() {
+		$publisher = Publisher::load(1);
+		$book = new Book;
+		$book->title = 'DAOEntityUnitTest';
+		$book->price = 1.00;
+		$book->publisher = $publisher;
+		$book->save();
+	}
+	
+	public static function test_CreateNewEntityMissingAutoKeyProperty() {
+		$publisher = new Publisher;
+		$publisher->name = "DAOEntityUnitTest";
+		$publisher->city = 'unittests';
+		$publisher->state = 'UT';
+		$publisher->save();
+		assert( !is_null($publisher->ID) );
+		$publisher->delete();
+	}
+	
+	/** @exception RequiredPropertiesException **/
+	public static function test_CreateNewEntityMissingRequiredProperty() {
+		$publisher = Publisher::load(1);
+		$book = new Book;
+		$book->isbn = '9780764587276';
+		$book->price = 1.00;
+		$book->publisher = $publisher;
+		$book->save();
+	}
+	
+	/** @exception RequiredPropertiesException **/
+	public static function test_CreateNewEntityMissingConstantProperty() {
+		$book = new Book;
+		$book->isbn = '9780764587276';
+		$book->title = 'DAOEntityUnitTest';
+		$book->price = 1.00;
+		$book->save();
+	}
+	
+	public static function test_CreateNewEntityWithReadonlyProperty() {
+		$author = new Author;
+		$author->firstName = 'DAOEntity';
+		$author->lastName = 'UnitTest';
+		$author->isAlive = false;
+		$author->bornOn = new Timestamp;
+		$author->ssn = '999-99-9999';
+		$author->save();
+		assert( !is_null($author->CreatedOn) );
+		assert( $author->CreatedOn instanceOf Timestamp );
+		$author->delete();
+	}
+	
+	public static function test_CreateNewEntityWithValidACLRestrictedProperty() {
+		$author = new Author;
+		$author->firstName = 'DAOEntity';
+		$author->lastName = 'UnitTest';
+		$author->isAlive = false;
+		$author->bornOn = new Timestamp;
+		$author->ssn = '999-99-9999';
+		$author->save();
+		assert( $author->ssn == '999999999' );
+		$author->delete();
+	}
+	
+	public static function test_CreateNewEntityWithDefaultProperty() {
+		$db = Application::db();
+		$author = new Author;
+		$author->firstName = 'DAOEntity';
+		$author->lastName = 'UnitTest';
+		$author->bornOn = new Timestamp;
+		$author->ssn = '999-99-9999';
+		$author->save();
+		assert( $author->isAlive->bool() === true );
+		$author->delete();
+	}
+	
+	public static function test_CreateNewEntityWithOverwrittenDefaultProperty() {
+		$db = Application::db();
+		$author = new Author;
+		$author->firstName = 'DAOEntity';
+		$author->lastName = 'UnitTest';
+		$author->bornOn = new Timestamp;
+		$author->ssn = '999-99-9999';
+		$author->isAlive = false;
+		$author->save();
+		assert( $author->isAlive->bool() === false );
+		$author->delete();
+	}
+	
+	public static function test_CreateNewEntityWithDBDefaultProperty() {
+		$publisher = Publisher::load(1);
+		$book = new Book;
+		$book->isbn = '2345';
+		$book->title = 'DAOEntityUnitTest';
+		$book->price = 1.00;
+		$book->publisher = $publisher;
+		$book->save();
+		assert( $book->publishedOn instanceOf Timestamp );
+		$book->delete();
+	}
+	
+	/** @exception RequiredPropertiesException **/
+	public static function test_UpdateExistingEntityWithMissingRequiredProperty() {
+		$book = Book::load(1234);
+		$book->title = null;
+		$book->save();
+	}
+	
+	public static function test_UpdateExistingEntityWithDefaultProperty() {
+		$author = Author::load(1);
+		$author->isAlive = false;
+		$author->save();
+		assert( $author->isAlive->bool() === false );
+	}
+	
+	public static function test_UpdateExistingEntityWithDBDefaultProperty() {
+		$book = Book::load(1234);
+		$book->title = 'Testers';
+		$book->publishedOn = 'now';
+		$book->save();
+		assert( $book->publishedOn instanceOf Timestamp );
+	}
+	
+	public static function test_StaticCreateNewEntity() {
+		$author = Author::create(array(
+			'firstName' => 'DAOEntity',
+			'lastName'	=> 'UnitTest',
+			'bornOn'	=> new Timestamp,
+			'ssn'		=> '999-99-9999'
+		));
+		assert( $author instanceOf Author);
+		assert( $author->firstName->str() === 'DAOEntity' );
+		assert( $author->isAlive->bool() === true );
+		$author->delete();
+	}
+	
+	/** @exception RequiredPropertiesException **/
+	public static function test_StaticUpdateExistingEntityWithWrongKey() {
+		$author = Author::update(array('firstName'=>'Mark'), array('lastName'=>'Twain'));
+	}
+	
+	/** @exception UnknownPropertiesException **/
+	public static function test_StaticUpdateExistingEntityWithUnknownProperty() {
+		$author = Author::update(1, array('surname'=>'Twain'));
+	}
+	
+	public static function test_StaticUpdateExistingEntityWithValidPropertyType() {
+		$author = Author::update(2, array('lastName'=>'Twain'));
+		assert( $author instanceOf Author );
+		assert( $author->firstName->str() === 'Mark' );
+		assert( $author->lastName->str() === 'Twain');
+	}	
+		
+	/** @exception InvalidTypesException **/
+	public static function test_StaticUpdateExistingEntityWithInvalidPropertyType() {
+		$author = Author::update(1, array('lastName'=>new Boolean(false)));
+	}
+	
+	/** @exception RestrictedPropertiesException **/
+	public static function test_StaticUpdateExistingEntityRestrictedKeyProperty() {
+		$author = Book::update(1234, array('isbn'=>5678));
+	}
+	
+	/** @exception RestrictedPropertiesException **/
+	public static function test_StaticUpdateExistingEntityInvalidACLRestrictedKeyProperty() {
+		$author = Author::update(1, array('ba'=>'888-88-8888'));
+	}	
+	
+	/*
+	public static function test_StaticUpdateExistingEntityAliasProperty() {
+		$book = Book::update(1234, array('msrp'=>11.99));
+		assert( $book->price->float() === 11.99);
+	}
+	*/
+	
+	/** @exception RestrictedPropertiesException **/
+	public static function test_StaticUpdateExistingEntityRestrictedAutoKeyProperty() {
+		$author = Author::update(1, array('ID'=>200));
+	}
+	
+	/** @exception RestrictedPropertiesException **/
+	public static function test_StaticUpdateExistingEntityRestrictedReadonlyProperty() {
+		$author = Author::update(1, array('CreatedOn'=>'now'));
+	}	
+
+	public static function test_StaticUpdateExistingEntityDBDefaultProperty() {
+		$book = Book::update(1234, array('publishedOn'=>'now'));
+		assert( $book->publishedOn instanceOf Timestamp );
+	}
+
+	public static function test_StaticUpdateExistingEntityDefaultProperty() {
+		$author = Author::update(1, array('isAlive'=>true));
+		assert( $author->isAlive->bool() === true );
+	}
+	
+	/** @exception RestrictedPropertiesException **/
+	public static function test_StaticUpdateExistingEntityConstantProperty() {
+		$author = Author::update(1, array('bornOn'=>'now'));
+	}
+	
+	public static function test_StaticUpdateExistingEntityRequiredProperty() {
+		$author = Author::update(2, array('lastName'=>'Twain II'));
+		assert( $author->lastName->str() === 'Twain II' );
+	}
+	
+	/** @exception RequiredPropertiesException **/
+	public static function test_StaticUpdateExistingEntityRequiredNullProperty() {
+		$author = Author::update(1, array('lastName'=>null));
+	}
+	
+	/** @exception RestrictedPropertiesException **/
+	public static function test_StaticUpdateExistingEntityRestrictedProperty() {
+		$author = Author::update(1, array('ssn'=>null));
+	}
+
+	public static function test_StaticUpdateExistingEntityLoadedEntityProperty() {
+		$book = Book::update(1234, array('altPublisher'=>Publisher::load(2)));
+		assert( $book->publisher->name->str() === 'Bronx Press' );	
+	}
+	
+	/** @exception InvalidTypesException **/
+	public static function test_StaticUpdateExistingEntityUnLoadedEntityProperty() {
+		$book = Book::update(1234, array('altPublisher'=>new Publisher));
+	}
+	
+	public static function test_StaticUpdateExistingEntityDependentProperty() {
+		$book = Book::update(1234, array('chapters'=>new unittests\Chapter()));
+	}
+	
+	public static function test_StaticUpdateExistingEntityRelationshipProperty() {
+		$author = Author::update(1, array('publications'=>new Book()));
+	}	
+	
+	public static function test_MethodParameters() {
+		foreach( Author::getClass()->getMethods(ReflectionMethod::IS_STATIC) as $method ) {
+//			println($method->getName());
+//			println($method->getParameterTypes());
+//			$method->getParameterTypes();
+		}
+	}
+}
+?>

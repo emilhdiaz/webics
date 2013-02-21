@@ -1,0 +1,62 @@
+10
+
+dir
+19
+svn+ssh://benz.cuit.columbia.edu/svn/webics/php/dao
+svn+ssh://benz.cuit.columbia.edu/svn/webics
+
+
+
+2010-09-19T07:35:29.832538Z
+19
+Emil Diaz
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+addc8856-e72d-42c5-afbe-2547f4d0a7ef
+
+DAOEntity.php
+file
+20
+
+
+
+2011-02-23T04:34:50.000000Z
+9868589746a47bce35aa444ab2cab218
+2011-02-23T06:34:03.267686Z
+20
+Emil Diaz
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+12140
+

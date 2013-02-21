@@ -1,0 +1,79 @@
+@CHARSET "UTF-8";
+
+form.Webics {
+	margin: 1%;
+	padding: 1%;
+	border: 1px solid #888888;
+}
+
+form.Webics > div[context=Caption] {
+	margin: 5px 0;
+	padding: 5px 0;
+	border-bottom: 1px solid #BBBBBB;
+	font-weight: bold;
+	color:#000000;
+	text-align: left;
+}
+
+form.Webics > table[context=Tabulation] {
+	width: 100%;
+}
+
+form.Webics > table[context=Tabulation] td:first-child {
+	width: 100%;
+}	
+
+form.Webics > table[context=Tabulation] td {
+	text-align: left;
+}
+
+form.Webics table[context=Tabulation] + input[context='Form.Submit'] {
+	margin: 10px 5%;
+	width: 90%;
+	height: 35px;
+}
+
+form.inLine {
+	background-color: #336699;	
+	position: relative;
+	color: white;
+}
+
+form.inLine > div[context=Planner] > div[context='Planner.Section'] > div[context=Container] {
+	float: left;
+	margin: 0 10px 0 0;
+}
+
+form.inLine > div[context=Planner] > div[context='Planner.Section'] > div[context=Container] > div {
+	float: left;
+	margin: 0 5px 0 0;
+}
+
+form.inLine > div[context=Planner] > div[context='Planner.Section'] > div[context=Container] div:first-child {
+	padding: 5px 0 0 0;
+}
+
+form.Webics div[context=Planner] + input[context='Form.Submit'] {
+	position: absolute;
+	right: 2px;
+	top: 2px;
+	width: 80px;
+	height: 30px;
+}
+
+form.Webics input {
+	width: 180px;
+	height: 20px;
+	font-size: 1.4em;
+}
+
+form.Webics select {
+	width: 185px;
+	height: 25px;
+	font-size: 1.4em;
+}
+
+input.single {
+	text-align: center;
+	width: 20px;
+}

@@ -1,0 +1,21 @@
+<?php
+class Cache extends Hash {
+	
+	public function store( $domain, $index, Object $object ) {
+		if( !$this->hasKey($domain) )
+			$this->$domain  = new Hash();
+			 
+		$this->$domain->$index = $object;
+	}
+	
+	public function retrive( $domain, $index ) {
+		if( !$this->hasKey($domain) )
+			return null;
+		
+		if( !$this->$domain->hasKey($index) )
+			return null;
+			
+		return $this->$domain->$index;
+	}
+}
+?>

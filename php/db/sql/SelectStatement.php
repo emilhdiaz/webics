@@ -1,0 +1,87 @@
+<?php
+class SelectStatement extends DatabaseStatement {
+	
+	private $tableName;
+	private $columns; 
+	private $conditions;
+	private $joins; 
+	private $orderBy;
+	private $topN;
+	private $operator = DatabaseSQLBuilder::EQUAL;
+	private $direction = DatabaseSQLBuilder::ASC;
+	
+	public function tables( String $tableName ) {
+		$this->tableName = $tableName;
+		return $this;
+	}
+	
+	public function columns( VArray $columns ) {
+		$this->columns = $columns;
+		return $this;
+	}
+	
+	public function where( Hash $conditions ) {
+		$this->conditions = $conditions;
+		return $this;
+	}
+	
+	public function join( Hash $joins ) {
+		$this->joins = $joins;
+		return $this;
+	}
+	
+	public function order( VArray $columns ) {
+		$this->orderBy = $columns;
+		return $this;
+	}
+	
+	public function top( Integer $n ) {
+		$this->topN = $n;
+		return $this;
+	}
+	
+	public function operator( $operator ) {
+		switch( $operator ) {
+			case DatabaseSQLBuilder::CONTAINING :
+			case DatabaseSQLBuilder::NOT_CONTAINING :
+				$this->conditions->prefix('%')->postfix('%');
+				break;
+		}
+		$this->operator = $operator;
+	}
+	
+	public function direction( $direction ) {
+		$this->direction = $direction;
+	}
+	
+	public function query() {
+		return $this->db->query($this, $this->conditions);			
+	}
+	
+	public function locate() {
+		return $this->db->locate($this, $this->conditions);			
+	}
+	
+	public function execute() {
+		return $this->db->quick($this, $this->conditions);			
+	}
+	
+	public function sql() {
+		$sql = $this->builder->select($this->tableName, $this->columns);
+
+		if( $this->conditions )
+			$sql->append( $this->builder->where($this->conditions, $this->operator) );
+		
+		if( $this->joins )
+			$sql->append( $this->builder->join($this->joins, $this->operator) );
+			
+		if( $this->orderBy )
+			$sql->append( $this->builder->order($this->orderBy, $this->direction) );
+			
+		if( $this->topN ) 
+			$sql->append( $this->builder->top($this->$topN) );
+			
+		return $sql;
+	}
+}
+?>

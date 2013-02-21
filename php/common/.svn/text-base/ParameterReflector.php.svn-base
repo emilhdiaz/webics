@@ -1,0 +1,53 @@
+<?php
+class ParameterReflector extends ReflectionParameter {
+
+	protected $annotations = array();
+	
+	public function __construct( $method, $parameter ) {
+		parent::__construct($method, $parameter);
+		if( $docComment = $this->getDeclaringFunction()->getDocComment() ) { 
+			if( preg_match_all('/@param[\s]+([\w\[\]\{\}\(\)]+[\s]+\$[\w]+[\s])/U', $docComment, $matches1) ) {
+				foreach( $matches1[1] as $match ) {
+					preg_match('/(\w+)(\[\]|\{\})?\(?([0-9]*)\)?[\s]+\$([\w]+)/', $match, $matches2);
+					list($annotation, $class, $isCollection, $length, $name) = $matches2;
+					if( $name == $parameter ) {
+						if( $class::getClass()->isSubclassOf('\DAOEntity') ) $isEntity = true;
+						$this->annotations = array('type'=>$class,'length'=>$length,'isEntity'=>(bool)$isEntity,'isCollection'=>(bool)$isCollection);
+					}
+				}
+			}
+		}
+	}
+	
+	public function hasAnnotation( $annotation ) {
+		$annotations = $this->getAnnotations();
+		return (bool) array_key_exists($annotation, $annotations);
+	}
+	
+	public function getAnnotation( $annotation ) {
+		if( !$this->hasAnnotation ) return false;
+		$annotations = $this->getAnnotations();
+		return $annotations[$annotation];
+	}
+	
+	public function getAnnotations() {
+		return $this->annotations;
+	}
+	
+	public function getType() {
+		return $this->annotations['type'];
+	}
+	
+	public function getLength() {
+		return $this->annotations['length'];
+	}
+	
+	public function isEntity() {
+		return $this->annotations['isEntity'];
+	}
+	
+	public function isCollection() {
+		return $this->annotations['isCollection'];
+	}
+}	
+?>

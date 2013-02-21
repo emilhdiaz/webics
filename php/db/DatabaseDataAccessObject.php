@@ -1,0 +1,339 @@
+<?php
+final class DatabaseDataAccessObject extends Object implements DataAccessObject {
+
+	private $db;
+
+	public function __construct( Database $db ) {
+		parent::__construct();
+		$this->db = $db;
+	}
+	
+	public function create( String $source, Hash $key, Hash $properties ) {
+		if( $this->exists(new VArray($source), $key) )
+			throw new DuplicateEntityException($source, $key);
+		
+		$insert = $this->db->newInsertStatement();
+		$insert->table($source);
+		$insert->data($properties);
+		$insert->execute();
+
+		if( $key->hasKey('ID') ) $key->ID = $this->db->insertID();
+		return $this->load(new VArray($source), $key);
+	}
+	
+	public function update( String $source, Hash $key, Hash $properties ) {
+		if( !$this->exists(new VArray($source), $key) )
+			throw new NoneExistentEntityException($source, $key);
+
+		$update = $this->db->newUpdateStatement();
+		$update->table($source);
+		$update->data($properties);
+		$update->where($key);
+		$update->execute();
+		return $this->load(new VArray($source), $key);
+	}
+	
+	public function delete( String $source, Hash $key ) {
+		if( !$this->exists(new VArray($source), $key) )
+			throw new NoneExistentEntityException($source, $key);
+		
+		$delete = $this->db->newDeleteStatement();
+		$delete->table($source);
+		$delete->where($key);
+		$delete->execute();
+		return true;
+	}	
+	
+	public function load( String $source, Hash $key, VArray $properties, VArray $joins = null ) {
+		$select = $this->db->newSelectStatement();
+		$select->tables($source);
+		$select->columns(new VArray(array('*')));
+		$select->where($key);
+		$select->join($joins);
+		$entity = $select->locate();
+		if( $entity->isEmpty() )
+			throw new NoneExistentEntityException($source, $key);
+
+		return $entity;
+	}
+
+	public function next( String $source, Hash $key, VArray $properties, VArray $group ) {
+		$next = $this->db->newNextStatement();
+		$next->table($source);
+		$next->columns(new VArray(array('*')));
+		$next->where($key);
+		$next->group($group);
+		v($next->sql());
+//		$entity = $next->execute();
+//		if( $entity->isEmpty() )
+//			throw new NoneExistentEntityException($source, $key);
+
+		return $entity;
+	}
+
+	public function exists( String $source, Hash $key ) {
+		$exists = $this->db->newSelectStatement();
+		$exists->tables($source);
+		$exists->columns(new VArray(array(1)));
+		$exists->where($key);
+		return count($exists->query());
+	}	
+	
+	public function find( String $source, Hash $partial ) {
+		$find = $this->db->newSelectStatement();
+		$find->tables($source);
+		$find->columns(new VArray(array('*')));
+		$find->where($partial);
+		return $find->query();
+	}
+	
+	public function search( String $source, Hash $partial ) {
+		$find = $this->db->newSelectStatement();
+		$find->tables($source);
+		$find->columns(new VArray(array('*')));
+		$find->where($partial);
+		$find->operator(DatabaseSQLBuilder::CONTAINING);
+		return $find->query();
+	}
+	
+	public function first( String $source, VArray $properties = null ) {
+		$first = $this->db->newSelectStatement();
+		$first->tables($source);
+		$first->columns(new VArray(array('*')));
+		$first->order($properties);
+		$first->direction($direction = DatabaseSQLBuilder::ASC);
+		$first->top(new Integer(1));
+		return $first->query();		
+	}
+	
+	public function last( String $source, VArray $properties = null ) {
+		$first = $this->db->newSelectStatement();
+		$first->tables($source);
+		$first->columns(new VArray(array('*')));
+		$first->order($properties);
+		$first->direction($direction = DatabaseSQLBuilder::DESC);
+		$first->top(new Integer(1));
+		return $first->query();		
+	}
+	
+	public function all( String $source ) {
+		$all = $this->db->newSelectStatement();
+		$all->tables($source);
+		$all->columns(new VArray(array('*')));
+		return $all->query();	
+	}
+	
+	public function dropRepository( String $source ) {
+		$table = $this->db->newTable($source);
+		$table->drop();
+		return $table;
+	}
+	
+	public function createRepository( DAOEntityReflector $entity ) {
+		if( $this->db->tableExists($entity->getSource()) )
+			return false;
+
+		$table = $this->db->newTable($entity->getSource());
+		
+		$base = $entity->getParentClass();
+		// create repository of parent entity first and add FK
+		if( $base->isSubclassOf('\DAOEntity') ) {
+			$base = new DAOEntityReflector($base->getName());
+			$base->createRepository();
+			$foreignKey = new DatabaseForeignKey(array_keys($entity->getKey()), $base->getSource(), array_keys($base->getKey()));
+			$table->addForeignKey($foreignKey);
+		}
+		
+		foreach($entity->getProperties() as $property) {
+			if( $property->hasAnnotation('alias') )
+				continue;
+				
+			$name = $property->getName();
+			$type = $property->getType();
+
+			if( $property->isEntity() ) {
+				#TODO: build custom tables for passthrough collections
+				if( $property->isCollection() ) 
+					continue;						
+
+				// Foreign Entity (One-to-One, or Many-to-One)
+				else {
+					// create repository of dependent entity first
+					if( $property->getDeclaringClass()->getName() != $type )
+						$type::getClass()->createRepository();
+					
+					$foreign = $type::getClass();
+					$foreignKeys = $foreign->getKey();
+					
+					foreach( $foreignKeys as $k=>$type ) {
+						$keyName = $name.$k;
+						
+						$column = new DatabaseColumn($keyName, $this->db->mapType($type));
+						if( $property->hasAnnotation('key') )
+							$column->isNotNull = true;
+							
+						if( $property->hasAnnotation('constant') )
+							$column->isNotNull = true;
+							
+						if( $property->hasAnnotation('required') )
+							$column->isNotNull = true;
+							
+						$table->addColumn($column);	
+					}
+					$foreignKeys = array_keys($foreignKeys);
+					if( $property->hasAnnotation('unique') ) {
+						$uniqueKey = new DatabaseUniqueKey(array_prefix_values($name, $foreignKeys));
+						$table->addUniqueKey($uniqueKey);
+					}
+					
+					$foreignKey = new DatabaseForeignKey(array_prefix_values($name, $foreignKeys), $foreign->getSource(), $foreignKeys);
+					$table->addForeignKey($foreignKey);
+				}
+			} else {
+				$column = new DatabaseColumn($name, $this->db->mapType($type));
+				if( $property->getAnnotation('key') == 'auto')
+					$column->isAutoIncrement = true;
+					
+				if( $property->hasAnnotation('key') )
+					$column->isNotNull = true;
+					
+				if( $property->hasAnnotation('constant') )
+					$column->isNotNull = true;
+					
+				if( $property->hasAnnotation('required') )
+					$column->isNotNull = true;
+					
+				if( $property->hasAnnotation('internal') )
+					$column->isNotNull = true;	
+					
+				if( $property->hasAnnotation('unique') )
+					$column->isUnique = true;	
+					
+				$table->addColumn($column);				
+			}
+		}
+		$primaryKey = new DatabasePrimaryKey( array_keys($entity->getKey()) );
+		$table->setPrimaryKey($primaryKey);
+		$table->create();
+		
+		return $table;
+	}
+	
+
+	public function createRelationships( DAOEntityReflector $entity ) {
+		foreach($entity->getProperties() as $property) {
+			if( !$property->isEntity() || !$property->isCollection() )
+				continue;
+				
+			$type = $property->getType();
+			$otherEntity = $type::getClass();
+			
+			$dependencies = $otherEntity->getDependencies();
+			
+			if( !$dependencies->hasKey($entity->getName()) ) 
+				throw new Exception("Invalid DAOEntity configuration");
+			
+			else if( $dependencies[$entity->getName()] == 'Direct' )
+				continue;
+			
+			else {
+				$entityName = $entity->getSource();
+				$otherEntityName = $entity->getSource();
+				$entities = array($entityName, $otherEntityName);
+				$tableName = '_'+implode(sort($entities));
+				
+				if( $this->db->tableExists($tableName) )
+					continue;
+				
+				$table = $this->db->newTable($tableName);
+				
+				$entityKeys = $entity->getKey();
+				foreach( $entityKeys as $k=>$type ) {
+					$keyName = $entityName.$k;
+					
+					$column = new DatabaseColumn($keyName, $this->db->mapType($type));
+					$column->isNotNull = true;
+					$table->addColumn($column);
+				}
+				$entityKeys = array_keys($entityKeys);
+				$entityForeignKey = array_prefix_values($entityName, $entityKeys);
+				$foreignKey = new DatabaseForeignKey($entityForeignKey, $entityName, $entityKeys);
+				$table->addForeignKey($foreignKey);
+				
+				$otherEntityKeys = $otherEntity->getKey();
+				foreach( $otherEntityKeys as $k=>$type ) {
+					$keyName = $otherEntityName.$k;
+					
+					$column = new DatabaseColumn($keyName, $this->db->mapType($type));
+					$column->isNotNull = true;
+					$table->addColumn($column);
+				}
+				$otherEntityKeys = array_keys($otherEntityKeys);
+				$otherEntityForeignKey = array_prefix_values($otherEntityName, $otherEntityKeys);
+				$foreignKey = new DatabaseForeignKey($otherEntityForeignKey, $otherEntityName, $otherEntityKeys);
+				$table->addForeignKey($foreignKey);
+				
+				$primaryKey = new DatabasePrimaryKey( array_merge($entityForeignKey,$otherEntityForeignKey) );
+				$table->setPrimaryKey($primaryKey);
+				
+				if( $dependencies[$entity->getName()] == 'VArray' ) {
+					$column = new DatabaseColumn('Order', $this->db->mapType('Integer'));
+					$column->isNotNull = true;
+					$table->addColumn($column);
+				}
+				$table->create();
+			}
+		}
+	}
+	/*
+	#TODO: '%'||?||'%' not working properly, also we should allow
+	#		$partial to define the sql operator and junction
+	public function joinPartial( $source1, $source2, $on, array $properties, array $partial ) {
+		$sql = $this->db->sql(
+			'select', array(
+				'table'	=> $source1,
+				'inner'	=> $source2,
+				'on'	=> $on,
+				'args'	=> $properties,
+				'where'	=> array_fill_keys( array_keys($partial), '==&&')
+			)
+		);
+		$stmt = $this->db->prepare($sql, Database::bind($partial));
+		$result = $stmt->execute();
+		return $result->fetchRow(FETCH_ARRAY);
+	}
+	
+	public function joinLike( $source1, $source2, $on, array $properties, array $partial ) {
+		$sql = $this->db->sql(
+			'select', array(
+				'table'	=> $source1,
+				'inner'	=> $source2,
+				'on'	=> $on,
+				'args'	=> $properties,
+				'where'	=> array_fill_keys( array_keys($partial), '%%||')
+			)
+		);
+		$sql .= ' AND PARENTREFFULLNAME IS NULL';
+		foreach( $partial as $key=>$value ) {
+			$partial[$key] = '%'.$value.'%';
+		}
+		$stmt = $this->db->prepare($sql, Database::bind($partial));
+		$result = $stmt->execute();
+		return $result->fetchRow(FETCH_ARRAY);
+	}
+
+	public function joinAll( $source1, $source2, $on, array $properties ) {
+		$sql = $this->db->sql(
+			'select', array(
+				'table'	=> $source1,
+				'inner'	=> $source2,
+				'on'	=> $on,
+				'args'	=> $properties
+			)
+		);
+		$result = $this->db->execute($sql);
+		return $result->fetchRow(FETCH_ARRAY);
+	}
+	*/
+}
+?>

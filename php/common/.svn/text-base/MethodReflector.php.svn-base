@@ -1,0 +1,54 @@
+<?php
+class MethodReflector extends ReflectionMethod {
+
+	protected $annotations = array();
+
+	public function __construct( $class, $method ) {
+		parent::__construct($class, $method);
+		if( $docComment = $this->getDocComment() ) { 
+			if( preg_match_all('/@([a-zA-Z]+[ ]*[\\\*a-zA-Z0-9\[\]\{\}]*)/', $docComment, $matches) ) {
+				foreach( $matches[1] as $match ) {
+					list( $annotation, $value ) = explode(" ", trim($match));
+					if( $annotation != 'param' ) 
+						$this->annotations[$annotation] = $value;
+				}
+			}
+		}
+	}
+	
+	public function hasAnnotation( $annotation ) {
+		$annotations = $this->getAnnotations();
+		return (bool) array_key_exists($annotation, $annotations);
+	}
+	
+	public function getAnnotation( $annotation ) {
+		if( !$this->hasAnnotation($annotation) ) return false;
+		$annotations = $this->getAnnotations();
+		return $annotations[$annotation];
+	}
+	
+	public function getAnnotations() {
+		return $this->annotations; 
+	}
+	
+	public function getParameter( $parameter ) {
+		return new ParameterReflector(array($this->class, $this->name), $parameter);
+	}
+	
+	public function getParameters() {
+		$parameters = array();
+		foreach( parent::getParameters() as $parameter ) {
+			$parameters[] = new ParameterReflector(array($this->class, $this->name), $parameter->getName());
+		}
+		return $parameters;
+	}
+	
+	public function getFullName() {
+		return $this->class.'::'.$this->name;
+	}
+	
+	public function getDeclaringClass() {
+		return new ClassReflector(parent::getDeclaringClass()->getName());
+	}
+}
+?>

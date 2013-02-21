@@ -1,0 +1,10 @@
+@CHARSET "UTF-8";
+
+div.view[component=link] {
+	width: 18px; 
+	height: 18px;
+	margin: auto;
+	background: url(../images/view-icon.jpg) center center no-repeat;
+	border: 1px solid black;
+	cursor: pointer;
+}
